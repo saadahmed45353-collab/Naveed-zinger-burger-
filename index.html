@@ -1,0 +1,42 @@
+<!doctype html><html><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><meta name=theme-color content="#8B0000"><title>Naveed Zinger Burger</title>
+<link rel=stylesheet href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>:root{--r:#8B0000}*{box-sizing:border-box}body{margin:0;font-family:system-ui;background:#fff;color:#222;padding:60px 0 70px}
+header{position:fixed;top:0;left:0;right:0;height:56px;background:var(--r);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 14px;font-weight:700;z-index:5}
+nav{position:fixed;bottom:0;left:0;right:0;height:62px;background:#fff;border-top:1px solid #ddd;display:flex;z-index:5}nav button{flex:1;border:0;background:none;font-size:12px;color:#777}nav button.on{color:var(--r);font-weight:700}
+.p{padding:12px}.card{display:flex;gap:10px;border:1px solid #eee;border-radius:12px;margin-bottom:10px;overflow:hidden}.card img{width:96px;height:96px;object-fit:cover;background:#f3d9d9}.card>div{flex:1;padding:8px 8px 8px 0}
+.btn{background:var(--r);color:#fff;border:0;border-radius:8px;padding:8px 12px}input,select{width:100%;padding:10px;margin:4px 0;border:1px solid #ccc;border-radius:8px}
+.chip{display:inline-block;padding:6px 12px;border:1px solid var(--r);border-radius:16px;margin:2px;color:var(--r)}.chip.on{background:var(--r);color:#fff}#map{height:300px;border-radius:12px}.row{display:flex;justify-content:space-between;padding:4px 0}</style></head>
+<body><header><span>🍔 Naveed Zinger Burger</span><span onclick="cartView()">🛒 <b id=cc>0</b></span></header><div id=v class=p></div>
+<nav><button id=n_home onclick="go('home')">🏠<br>Home</button><button id=n_wish onclick="go('wish')">❤️<br>Wishlist</button><button id=n_deals onclick="go('deals')">🏷️<br>Deals</button><button id=n_profile onclick="go('profile')">👤<br>Profile</button></nav>
+<script>
+const $=s=>document.querySelector(s),DEL=150,rs=n=>'Rs '+n;
+const api=async(u,m='GET',b)=>{const r=await fetch('/api'+u,{method:m,headers:{'Content-Type':'application/json',Authorization:'Bearer '+(localStorage.t||'')},body:b&&JSON.stringify(b)});const j=await r.json();if(!r.ok)throw j.error||'Error';return j};
+let cart=JSON.parse(localStorage.c||'[]'),F={q:'',cat:'',sort:''},P=[],D=[],wl=[],tm,tab='home';
+const sv=()=>{localStorage.c=JSON.stringify(cart);$('#cc').textContent=cart.reduce((a,i)=>a+i.qty,0)};sv();
+function add(type,id){const x=(type=='p'?P:D).find(i=>i.id==id),i=cart.find(c=>c.type==type&&c.id==id);i?i.qty++:cart.push({type,id,name:x.name||x.title,price:x.price,qty:1});sv()}
+const card=(x,t)=>`<div class=card><img src="${x.image||''}" onerror="this.style.visibility='hidden'"><div><b>${x.name||x.title}</b><br><small>${t=='p'?'⭐ '+x.rating+' · ':''}${x.description||''}</small><br><b style="color:#8B0000">${rs(x.price)}</b> ${t=='p'?`<span onclick="wt(${x.id})" style="font-size:20px">${wl.includes(x.id)?'❤️':'🤍'}</span>`:''} <button class=btn onclick="add('${t}',${x.id});this.textContent='Added ✓'">Add</button></div></div>`;
+async function loadWl(){wl=localStorage.t?(await api('/wishlist').catch(()=>[])).map(x=>x.id):[]}
+async function wt(id){if(!localStorage.t)return alert('Please log in first (Profile)');await api('/wishlist/'+id,wl.includes(id)?'DELETE':'POST');go(tab)}
+function go(t){tab=t;clearInterval(tm);document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.id=='n_'+t));({home,wish,deals,profile})[t]()}
+async function home(){P=await api('/products');await loadWl();const cats=[...new Set(P.map(p=>p.category))];
+$('#v').innerHTML=`<input placeholder="Search burgers…" value="${F.q}" oninput="F.q=this.value;list()"><div>${['',...cats].map(c=>`<span class="chip ${F.cat==c?'on':''}" onclick="F.cat='${c}';home()">${c||'All'}</span>`).join('')}</div><select onchange="F.sort=this.value;list()"><option value="">Sort by</option><option value=p ${F.sort=='p'?'selected':''}>Price: low to high</option><option value=r ${F.sort=='r'?'selected':''}>Top rated</option></select><div id=l></div>`;list()}
+function list(){let a=P.filter(p=>(!F.cat||p.category==F.cat)&&(p.name+p.description).toLowerCase().includes(F.q.toLowerCase()));if(F.sort=='p')a.sort((x,y)=>x.price-y.price);if(F.sort=='r')a.sort((x,y)=>y.rating-x.rating);$('#l').innerHTML=a.map(p=>card(p,'p')).join('')||'No items found'}
+async function wish(){if(!localStorage.t)return $('#v').innerHTML='<p>Log in from Profile to save favourites.</p>';P=await api('/products');await loadWl();$('#v').innerHTML='<h3>Wishlist</h3>'+(P.filter(p=>wl.includes(p.id)).map(p=>card(p,'p')).join('')||'Nothing saved yet')}
+async function deals(){D=await api('/deals');$('#v').innerHTML='<h3>Current Deals</h3>'+(D.map(d=>card(d,'d')).join('')||'No active deals right now')}
+async function profile(){if(!localStorage.t)return $('#v').innerHTML=`<h3>Welcome</h3><input id=n placeholder="Name (for sign up)"><input id=ph placeholder="Phone" type=tel><input id=pw type=password placeholder="Password (6+ chars)"><button class=btn onclick="login(0)">Login</button> <button class=btn onclick="login(1)">Register</button>`;
+const [A,O]=await Promise.all([api('/addresses'),api('/orders')]);
+$('#v').innerHTML=`<h3>Hi, ${localStorage.u}</h3><h4>Saved addresses</h4>${A.map(a=>`<div class=row><span><b>${a.label}</b>: ${a.address}</span><span onclick="da(${a.id})">🗑</span></div>`).join('')}<input id=al placeholder="Label (Home/Work)"><input id=aa placeholder="Full address"><button class=btn onclick="aa()">Save address</button>
+<h4>Order history</h4>${O.map(o=>`<div class=card style="padding:8px"><div><b>#${o.id}</b> · ${o.status}<br><small>${JSON.parse(o.items).map(i=>i.qty+'× '+i.name).join(', ')}</small><br>Total ${rs(o.total)} (incl. ${rs(o.delivery)} delivery)<br><button class=btn onclick="track(${o.id})">📍 Track</button></div></div>`).join('')||'No orders yet'}<br><button class=btn onclick="localStorage.clear();cart=[];sv();go('profile')">Logout</button>`}
+async function login(reg){try{const r=await api(reg?'/register':'/login','POST',{name:$('#n').value,phone:$('#ph').value,password:$('#pw').value});localStorage.t=r.token;localStorage.u=r.user.name;go('profile')}catch(x){alert(x)}}
+async function aa(){try{await api('/addresses','POST',{label:$('#al').value,address:$('#aa').value});profile()}catch(x){alert(x)}}
+async function da(id){await api('/addresses/'+id,'DELETE');profile()}
+async function cartView(){const sub=cart.reduce((a,i)=>a+i.price*i.qty,0);if(!cart.length)return $('#v').innerHTML='<h3>Cart</h3>Your cart is empty';
+const A=localStorage.t?await api('/addresses').catch(()=>[]):[];
+$('#v').innerHTML=`<h3>Checkout</h3>${cart.map((i,k)=>`<div class=row><span>${i.qty}× ${i.name}</span><span>${rs(i.price*i.qty)} <b onclick="cart.splice(${k},1);sv();cartView()">✕</b></span></div>`).join('')}<hr><div class=row><span>Subtotal</span><span>${rs(sub)}</span></div><div class=row><span>Delivery charge (mandatory)</span><span>${rs(DEL)}</span></div><div class=row><b>Total</b><b style="color:#8B0000">${rs(sub+DEL)}</b></div>
+<input id=ad list=dl placeholder="Delivery address"><datalist id=dl>${A.map(a=>`<option value="${a.address}">`).join('')}</datalist><button class=btn style="width:100%;padding:14px" onclick="place()">Place order · ${rs(sub+DEL)}</button>`}
+async function place(){if(!localStorage.t){alert('Please log in first');return go('profile')}try{const o=await api('/orders','POST',{items:cart.map(({type,id,qty})=>({type,id,qty})),address:$('#ad').value});cart=[];sv();alert('Order placed! Total '+rs(o.total));track(o.id)}catch(x){alert(x)}}
+function track(id){clearInterval(tm);$('#v').innerHTML=`<h3>Order #${id}</h3><p id=st>Loading…</p><div id=map></div>`;
+const m=L.map('map').setView([31.5204,74.3587],12);L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(m);let mk;
+const u=async()=>{try{const t=await api('/orders/'+id+'/track');$('#st').textContent='Status: '+t.status+(t.rider?' · Rider: '+t.rider:' · Rider not assigned yet');if(t.lat){const p=[t.lat,t.lng];mk?mk.setLatLng(p):mk=L.marker(p).addTo(m);m.setView(p,15)}}catch{}};u();tm=setInterval(u,5000)}
+go('home');
+</script></body></html>

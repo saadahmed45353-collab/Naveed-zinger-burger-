@@ -1,0 +1,7 @@
+<meta name=viewport content="width=device-width,initial-scale=1"><title>Rider</title>
+<body style="font-family:system-ui;background:#8B0000;color:#fff;text-align:center;padding:40px"><h2>🛵 Rider – Naveed Zinger Burger</h2>
+<p>Tap below and allow location access so customers can track you.</p>
+<button id=b style="padding:16px 24px;font-size:18px;border-radius:10px;border:0">Start sharing location</button><p id=s></p>
+<script>const t=new URLSearchParams(location.search).get('token');
+b.onclick=()=>{if(!navigator.geolocation)return s.textContent='GPS not supported';
+navigator.geolocation.watchPosition(p=>fetch('/api/rider/location',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:t,lat:p.coords.latitude,lng:p.coords.longitude})}).then(r=>s.textContent=r.ok?'Live ✓ '+new Date().toLocaleTimeString():'Invalid rider link'),e=>s.textContent='Permission needed: '+e.message,{enableHighAccuracy:true})}</script>

@@ -1,0 +1,23 @@
+<!doctype html><meta name=viewport content="width=device-width,initial-scale=1"><title>Admin – Naveed Zinger Burger</title>
+<style>body{font-family:system-ui;margin:0}header{background:#8B0000;color:#fff;padding:12px 16px;font-weight:700}nav{overflow-x:auto;white-space:nowrap}nav button{padding:10px 16px;border:0;background:#fff;border-bottom:3px solid transparent;text-transform:capitalize}nav button.on{border-color:#8B0000;color:#8B0000;font-weight:700}.w{padding:12px;overflow-x:auto}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ddd;padding:4px;font-size:13px}input,select{width:100%;min-width:70px;padding:5px;box-sizing:border-box}.b{background:#8B0000;color:#fff;border:0;padding:6px 10px;border-radius:6px}</style>
+<header>🍔 Naveed Zinger Burger — Admin</header><div id=app class=w></div>
+<script>
+const $=s=>document.querySelector(s);let cur;
+const api=async(u,m='GET',b)=>{const r=await fetch('/api'+u,{method:m,headers:{'Content-Type':'application/json',Authorization:'Bearer '+(localStorage.at||'')},body:b&&JSON.stringify(b)});const j=await r.json();if(!r.ok)throw j.error;return j};
+const S={products:['name','description','price','category','image','rating','active'],deals:['title','description','price','image','expires','active'],riders:['name','phone','active']};
+const e=v=>String(v??'').replace(/"/g,'&quot;');
+const tb=(h,rows)=>`<table><tr>${h.map(x=>`<th>${x}</th>`).join('')}</tr>${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</table>`;
+function login(){$('#app').innerHTML=`<h3>Admin login</h3><input id=ph placeholder=Phone><br><br><input id=pw type=password placeholder=Password><br><br><button class=b onclick=doLogin()>Login</button>`}
+async function doLogin(){try{const r=await api('/login','POST',{phone:$('#ph').value,password:$('#pw').value});if(r.user.role!='admin')throw'Not an admin';localStorage.at=r.token;start()}catch(x){alert(x)}}
+function start(){if(!localStorage.at)return login();$('#app').innerHTML=`<nav>${['orders','products','deals','riders','customers'].map(t=>`<button id=t_${t} onclick="show('${t}')">${t}</button>`).join('')}<button onclick="localStorage.removeItem('at');login()">Logout</button></nav><div id=c></div>`;show('orders')}
+async function show(t){cur=t;document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.id=='t_'+t));
+try{const d=await api('/admin/'+t);
+if(t=='customers')return $('#c').innerHTML=tb(['Name','Phone','Orders','Joined'],d.map(u=>[u.name,u.phone,u.orders,u.created]));
+if(t=='orders'){const R=await api('/admin/riders');return $('#c').innerHTML=tb(['#','Customer','Items','Total (incl. Rs 150 delivery)','Address','Status','Rider',''],d.map(o=>[o.id,o.cname+' '+o.phone,JSON.parse(o.items).map(i=>i.qty+'× '+i.name).join(', '),'Rs '+o.total,o.address,`<select id=s${o.id}>${['placed','preparing','out_for_delivery','delivered','cancelled'].map(x=>`<option ${x==o.status?'selected':''}>${x}</option>`).join('')}</select>`,`<select id=r${o.id}><option value="">—</option>${R.map(r=>`<option value=${r.id} ${r.id==o.rider_id?'selected':''}>${r.name}</option>`).join('')}</select>`,`<button class=b onclick=so(${o.id})>Save</button>`]))}
+const F=S[t];$('#c').innerHTML=`<table><tr>${F.map(f=>`<th>${f}</th>`).join('')}<th></th></tr>${[{},...d].map(r=>`<tr data-id="${r.id||''}">${F.map(f=>`<td><input data-f=${f} value="${e(r[f]??(f=='active'?1:''))}"></td>`).join('')}<td><button class=b onclick=sv(this)>${r.id?'Save':'Add'}</button>${r.id?`<button onclick=dl(${r.id})>✕</button>`:''}${t=='riders'&&r.id?`<br><small>/rider.html?token=${r.token}</small>`:''}</td></tr>`).join('')}</table>`}
+catch(x){alert(x);if(x=='Unauthorized')login()}}
+function sv(b){const tr=b.closest('tr'),body={},id=tr.dataset.id;tr.querySelectorAll('input').forEach(i=>body[i.dataset.f]=i.value);api('/admin/'+cur+(id?'/'+id:''),id?'PUT':'POST',body).then(()=>show(cur)).catch(alert)}
+function dl(id){if(confirm('Delete?'))api('/admin/'+cur+'/'+id,'DELETE').then(()=>show(cur))}
+function so(id){api('/admin/orders/'+id,'PUT',{status:$('#s'+id).value,rider_id:$('#r'+id).value||null}).then(()=>alert('Saved'))}
+start();
+</script>
